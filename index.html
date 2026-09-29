@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Asisten Log & Time Tracker</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            },
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 h-full flex flex-col">
+    <header class="bg-indigo-600 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="p-2 bg-indigo-700 rounded-xl">
+                    <i data-lucide="clock" class="w-7 h-7"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight">Personal Asisten Log</h1>
+                    <p class="text-xs text-indigo-200">Koorprak Matek & Kelas Komposit Tracker</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="px-4 py-2 text-sm font-medium rounded-lg bg-indigo-700 transition flex items-center gap-2 shadow-sm">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard & Log
+                </button>
+                <button onclick="switchTab('settings')" id="nav-settings" class="px-4 py-2 text-sm font-medium rounded-lg hover:bg-indigo-700 transition flex items-center gap-2">
+                    <i data-lucide="folder-kanban" class="w-4 h-4"></i> Kelola Job & Sub-Job
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 overflow-y-auto">
+        <!-- NOTIFICATION TOAST -->
+        <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-3">
+            <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+            <span id="toast-msg" class="text-sm font-medium">Berhasil disimpan!</span>
+        </div>
+
+        <!-- IMAGE PREVIEW MODAL -->
+        <div id="image-modal" class="fixed inset-0 z-50 hidden bg-black/70 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl max-w-lg w-full p-4 relative shadow-2xl">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-bold text-slate-900 text-base">Bukti Foto / Lampiran</h3>
+                    <button onclick="closeImageModal()" class="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <div class="flex justify-center bg-slate-100 rounded-xl p-2 overflow-hidden max-h-[70vh]">
+                    <img id="modal-img-element" src="" alt="Bukti Foto" class="object-contain rounded-lg max-h-[65vh]">
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 1: DASHBOARD & LOGS -->
+        <div id="view-dashboard" class="space-y-6">
+            <!-- STATS OVERVIEW -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Jam Keseluruhan</p>
+                        <h3 id="stat-total-hours" class="text-3xl font-bold text-slate-900 mt-1">0 Jam</h3>
+                    </div>
+                    <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+                        <i data-lucide="timer" class="w-6 h-6"></i>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Aktivitas Tercatat</p>
+                        <h3 id="stat-total-logs" class="text-3xl font-bold text-slate-900 mt-1">0</h3>
+                    </div>
+                    <div class="p-3 bg-blue-50 text-blue-600 rounded-xl">
+                        <i data-lucide="file-text" class="w-6 h-6"></i>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Total Kelas / Peran Aktif</p>
+                        <h3 id="stat-total-courses" class="text-3xl font-bold text-slate-900 mt-1">0</h3>
+                    </div>
+                    <div class="p-3 bg-amber-50 text-amber-600 rounded-xl">
+                        <i data-lucide="briefcase" class="w-6 h-6"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MAIN GRID: FORM & LOG HISTORY -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- INPUT FORM -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1 h-fit">
+                    <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2 mb-4">
+                        <i data-lucide="plus-circle" class="w-5 h-5 text-indigo-600"></i> Catat Waktu & Kegiatan
+                    </h2>
+                    <form id="log-form" onsubmit="handleLogSubmit(event)" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Pilih Kelas / Peran (Job)</label>
+                            <select id="input-course" onchange="updateSubJobDropdown()" required class="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                <!-- Populated dynamically -->
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Pilih Sub-Job/Task</label>
+                            <select id="input-subjob" required class="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                <!-- Populated dynamically -->
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Tanggal</label>
+                            <input type="date" id="input-date" required class="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Durasi (Jam)</label>
+                            <input type="number" id="input-duration" step="0.5" min="0.5" max="24" value="2.0" required class="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Deskripsi Kegiatan</label>
+                            <textarea id="input-activity" rows="3" required placeholder="Contoh: Koreksi kuis matriks bab 2, ngajar lab komposit..." class="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Upload Bukti / Foto (Opsional)</label>
+                            <input type="file" id="input-photo" accept="image/*" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer">
+                        </div>
+                        <button type="submit" id="submit-btn" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl text-sm shadow transition flex items-center justify-center gap-2">
+                            <i data-lucide="save" class="w-4 h-4"></i> Simpan Aktivitas
+                        </button>
+                    </form>
+                </div>
+
+                <!-- TABLE & BREAKDOWN RECAP -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2 space-y-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div>
+                            <h2 class="text-lg font-bold text-slate-900">Riwayat & Breakdown Waktu</h2>
+                            <p class="text-xs text-slate-500">Rekapitulasi jam kerja terinci per Kelas dan Sub-Job</p>
+                        </div>
+                        <div>
+                            <select id="filter-course" onchange="renderDashboard()" class="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                <option value="ALL">Semua Kelas</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- BREAKDOWN SUMMARY CARDS -->
+                    <div class="space-y-3">
+                        <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Breakdown Jam Kerja per Kelas & Sub-Job</h3>
+                        <div id="breakdown-container" class="space-y-3">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- LOGS TABLE -->
+                    <div class="pt-4 border-t border-slate-200">
+                        <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Daftar Log Terbaru</h3>
+                        <div class="overflow-x-auto rounded-xl border border-slate-200">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-100 text-slate-600 text-xs uppercase tracking-wider">
+                                        <th class="p-3">Tanggal</th>
+                                        <th class="p-3">Kelas / Peran</th>
+                                        <th class="p-3">Sub-Job</th>
+                                        <th class="p-3">Deskripsi</th>
+                                        <th class="p-3 text-center">Bukti</th>
+                                        <th class="p-3 text-right">Durasi</th>
+                                        <th class="p-3 text-center">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="logs-table-body" class="divide-y divide-slate-200 text-sm">
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 2: SETTINGS (MANAGE JOBS & SUB-JOBS) -->
+        <div id="view-settings" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2 mb-1">
+                    <i data-lucide="folder-kanban" class="w-5 h-5 text-indigo-600"></i> Kelola Kelas, Peran, & Sub-Job
+                </h2>
+                <p class="text-xs text-slate-500 mb-6">Tambah job baru atau buat sub-job spesifik untuk memudahkan pencatatan tugas.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Add Course Form -->
+                    <div class="bg-slate-50 p-5 rounded-xl border border-slate-200 space-y-4">
+                        <h3 class="font-bold text-slate-800 text-sm uppercase tracking-wider">Tambah Kelas / Peran Baru</h3>
+                        <div class="space-y-3">
+                            <input type="text" id="new-course-name" placeholder="Contoh: Asisten Praktikum Fisika" class="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <button onclick="addCourse()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl text-sm transition shadow-sm">
+                                Tambah Kelas / Peran
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Add Sub-Job Form -->
+                    <div class="bg-slate-50 p-5 rounded-xl border border-slate-200 space-y-4">
+                        <h3 class="font-bold text-slate-800 text-sm uppercase tracking-wider">Tambah Sub-Job ke Kelas</h3>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1">Pilih Kelas Tujuan</label>
+                                <select id="settings-select-course" class="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    <!-- Populated dynamically -->
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1">Nama Sub-Job / Task</label>
+                                <input type="text" id="new-subjob-name" placeholder="Contoh: Koreksi Modul, Ngajar Lab, Bikin Soal" class="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <button onclick="addSubJob()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl text-sm transition shadow-sm">
+                                Tambahkan Sub-Job
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <!-- Existing Courses & Sub-Jobs List -->
+                <div class="mt-8 pt-6 border-t border-slate-200">
+                    <h3 class="font-bold text-slate-800 mb-4">Struktur Kelas & Sub-Job Saat Ini</h3>
+                    <div id="courses-subjobs-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- FIREBASE & APP LOGIC SCRIPT -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, setDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
+
+        // Konfigurasi Firebase dari akun Anda
+        const firebaseConfig = {
+            apiKey: "AIzaSyAwltZ2_2g6-VTqaxCvWE3QG8jIFKYmsaE",
+            authDomain: "mykanbanboard-68122.firebaseapp.com",
+            databaseURL: "https://mykanbanboard-68122-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "mykanbanboard-68122",
+            storageBucket: "mykanbanboard-68122.firebasestorage.app",
+            messagingSenderId: "580780157519",
+            appId: "1:580780157519:web:5d8e2d77be992c3624983a"
+        };
+
+        // Inisialisasi Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
+
+        // State Global Aplikasi
+        let courses = {
+            "Koorprak Matek": ["Briefing & Koordinasi", "Pembuatan Modul / Soal", "Evaluasi Asisten & Nilai"],
+            "Kelas Komposit": ["Koreksi Tugas / Laporan", "Mengajar / Asistensi Lab", "Persiapan Alat & Bahan"]
+        };
+        let logs = [];
+
+        // Ekspos fungsi ke objek window agar bisa dipanggil langsung dari atribut HTML (onclick, onchange, dll)
+        window.switchTab = switchTab;
+        window.updateSubJobDropdown = updateSubJobDropdown;
+        window.handleLogSubmit = handleLogSubmit;
+        window.deleteLog = deleteLog;
+        window.openImageModal = openImageModal;
+        window.closeImageModal = closeImageModal;
+        window.addCourse = addCourse;
+        window.removeCourse = removeCourse;
+        window.addSubJob = addSubJob;
+        window.removeSubJob = removeSubJob;
+
+        // Inisialisasi awal saat halaman dimuat
+        document.addEventListener("DOMContentLoaded", () => {
+            document.getElementById('input-date').valueAsDate = new Date();
+            initFirebaseRealtimeListeners();
+            lucide.createIcons();
+        });
+
+        // Sinkronisasi Realtime dengan Firestore
+        function initFirebaseRealtimeListeners() {
+            // 1. Pantau perubahan data Courses/Jobs di Firestore
+            onSnapshot(doc(db, "settings", "coursesData"), async (docSnap) => {
+                if (docSnap.exists()) {
+                    courses = docSnap.data().courses;
+                } else {
+                    // Jika belum ada di database, buat data default di Firestore
+                    await setDoc(doc(db, "settings", "coursesData"), { courses });
+                }
+                updateCourseDropdowns();
+                renderSettings();
+                renderDashboard();
+            });
+
+            // 2. Pantau perubahan data Logs secara Realtime
+            const q = query(collection(db, "logs"), orderBy("timestamp", "desc"));
+            onSnapshot(q, (snapshot) => {
+                logs = [];
+                snapshot.forEach((docSnap) => {
+                    logs.push({ id: docSnap.id, ...docSnap.data() });
+                });
+                renderDashboard();
+            });
+        }
+
+        // Fungsi Simpan Struktur Kelas terbaru ke Firestore
+        async function saveCoursesToFirebase() {
+            try {
+                await setDoc(doc(db, "settings", "coursesData"), { courses });
+            } catch (error) {
+                console.error("Gagal menyimpan struktur kelas: ", error);
+            }
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            const msgEl = document.getElementById('toast-msg');
+            msgEl.innerText = message;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        function openImageModal(url) {
+            const modal = document.getElementById('image-modal');
+            const imgEl = document.getElementById('modal-img-element');
+            imgEl.src = url;
+            modal.classList.remove('hidden');
+        }
+
+        function closeImageModal() {
+            const modal = document.getElementById('image-modal');
+            modal.classList.add('hidden');
+        }
+
+        function switchTab(tab) {
+            const dashView = document.getElementById('view-dashboard');
+            const settingsView = document.getElementById('view-settings');
+            const navDash = document.getElementById('nav-dashboard');
+            const navSettings = document.getElementById('nav-settings');
+            if (tab === 'dashboard') {
+                dashView.classList.remove('hidden');
+                settingsView.classList.add('hidden');
+                navDash.classList.add('bg-indigo-700', 'shadow-sm');
+                navSettings.classList.remove('bg-indigo-700', 'shadow-sm');
+                renderDashboard();
+            } else {
+                settingsView.classList.remove('hidden');
+                dashView.classList.add('hidden');
+                navSettings.classList.add('bg-indigo-700', 'shadow-sm');
+                navDash.classList.remove('bg-indigo-700', 'shadow-sm');
+                renderSettings();
+            }
+        }
+
+        function updateCourseDropdowns() {
+            const inputCourse = document.getElementById('input-course');
+            const filterCourse = document.getElementById('filter-course');
+            const settingsCourse = document.getElementById('settings-select-course');
+            if (!inputCourse || !filterCourse || !settingsCourse) return;
+
+            const courseNames = Object.keys(courses);
+            inputCourse.innerHTML = '';
+            settingsCourse.innerHTML = '';
+            
+            const currentFilter = filterCourse.value;
+            filterCourse.innerHTML = '<option value="ALL">Semua Kelas</option>';
+            
+            courseNames.forEach(c => {
+                inputCourse.innerHTML += `<option value="${c}">${c}</option>`;
+                settingsCourse.innerHTML += `<option value="${c}">${c}</option>`;
+                filterCourse.innerHTML += `<option value="${c}">${c}</option>`;
+            });
+            
+            if (courseNames.includes(currentFilter)) {
+                filterCourse.value = currentFilter;
+            }
+            updateSubJobDropdown();
+        }
+
+        function updateSubJobDropdown() {
+            const courseEl = document.getElementById('input-course');
+            const subJobSelect = document.getElementById('input-subjob');
+            if (!courseEl || !subJobSelect) return;
+
+            const selectedCourse = courseEl.value;
+            subJobSelect.innerHTML = '';
+            const subjobs = courses[selectedCourse] || [];
+            
+            if (subjobs.length === 0) {
+                subJobSelect.innerHTML = '<option value="">(Belum ada sub-job di kelas ini)</option>';
+            } else {
+                subjobs.forEach(sj => {
+                    subJobSelect.innerHTML += `<option value="${sj}">${sj}</option>`;
+                });
+            }
+        }
+
+        async function handleLogSubmit(e) {
+            e.preventDefault();
+            const course = document.getElementById('input-course').value;
+            const subjob = document.getElementById('input-subjob').value;
+            const date = document.getElementById('input-date').value;
+            const duration = parseFloat(document.getElementById('input-duration').value);
+            const activity = document.getElementById('input-activity').value;
+            const photoInput = document.getElementById('input-photo');
+            const submitBtn = document.getElementById('submit-btn');
+
+            if (!subjob || subjob.startsWith("(")) {
+                showToast("Pilih sub-job yang valid terlebih dahulu!");
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.innerText = "Menyimpan ke Cloud...";
+
+            try {
+                let photoUrl = null;
+                // Upload foto ke Firebase Storage jika ada file yang dipilih
+                if (photoInput.files && photoInput.files[0]) {
+                    const file = photoInput.files[0];
+                    const storageRef = ref(storage, 'proofs/' + Date.now() + '_' + file.name);
+                    const snapshot = await uploadBytes(storageRef, file);
+                    photoUrl = await getDownloadURL(snapshot.ref);
+                }
+
+                // Simpan dokumen log baru ke Firestore Database
+                await addDoc(collection(db, "logs"), {
+                    course,
+                    subjob,
+                    date,
+                    duration,
+                    activity,
+                    photo: photoUrl,
+                    timestamp: Date.now()
+                });
+
+                document.getElementById('input-activity').value = '';
+                document.getElementById('input-duration').value = '2.0';
+                document.getElementById('input-photo').value = '';
+                showToast("Aktivitas berhasil dicatat ke Firebase!");
+            } catch (error) {
+                console.error("Gagal menyimpan log:", error);
+                alert("Gagal menyimpan data ke server.");
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = `<i data-lucide="save" class="w-4 h-4"></i> Simpan Aktivitas`;
+                lucide.createIcons();
+            }
+        }
+
+        async function deleteLog(id) {
+            if (confirm("Yakin ingin menghapus catatan aktivitas ini?")) {
+                try {
+                    await deleteDoc(doc(db, "logs", id));
+                    showToast("Log berhasil dihapus dari server");
+                } catch (error) {
+                    console.error("Gagal menghapus log:", error);
+                    alert("Gagal menghapus data.");
+                }
+            }
+        }
+
+        function renderDashboard() {
+            const filterEl = document.getElementById('filter-course');
+            if (!filterEl) return;
+
+            const filter = filterEl.value;
+            const filteredLogs = filter === 'ALL' ? logs : logs.filter(l => l.course === filter);
+            
+            // Total Hours & Stats
+            const totalHours = filteredLogs.reduce((acc, curr) => acc + (curr.duration || 0), 0);
+            document.getElementById('stat-total-hours').innerText = `${totalHours} Jam`;
+            document.getElementById('stat-total-logs').innerText = filteredLogs.length;
+            document.getElementById('stat-total-courses').innerText = Object.keys(courses).length;
+
+            // Render Table
+            const tbody = document.getElementById('logs-table-body');
+            tbody.innerHTML = '';
+            if (filteredLogs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-slate-400">Belum ada catatan aktivitas.</td></tr>`;
+            } else {
+                filteredLogs.forEach(l => {
+                    const photoHtml = l.photo 
+                        ? `<button onclick="openImageModal('${l.photo}')" class="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 px-2 py-1 rounded-lg text-xs font-medium hover:bg-indigo-100"><i data-lucide="image" class="w-3.5 h-3.5"></i> Lihat</button>`
+                        : `<span class="text-slate-400 text-xs italic">Tanpa Bukti</span>`;
+                    
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="p-3 text-slate-600 whitespace-nowrap">${l.date}</td>
+                            <td class="p-3 font-semibold text-slate-800">${l.course}</td>
+                            <td class="p-3 text-slate-700"><span class="bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-lg text-xs font-medium">${l.subjob}</span></td>
+                            <td class="p-3 text-slate-600">${l.activity}</td>
+                            <td class="p-3 text-center">${photoHtml}</td>
+                            <td class="p-3 text-right font-bold text-indigo-600 whitespace-nowrap">${l.duration} Jam</td>
+                            <td class="p-3 text-center">
+                                <button onclick="deleteLog('${l.id}')" class="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition" title="Hapus">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+
+            // Render Breakdown Container
+            const breakdownContainer = document.getElementById('breakdown-container');
+            breakdownContainer.innerHTML = '';
+            
+            const breakdownData = {};
+            filteredLogs.forEach(l => {
+                if (!breakdownData[l.course]) {
+                    breakdownData[l.course] = { total: 0, subjobs: {} };
+                }
+                breakdownData[l.course].total += l.duration;
+                breakdownData[l.course].subjobs[l.subjob] = (breakdownData[l.course].subjobs[l.subjob] || 0) + l.duration;
+            });
+
+            const courseKeys = Object.keys(breakdownData);
+            if (courseKeys.length === 0) {
+                breakdownContainer.innerHTML = `<div class="p-4 bg-slate-50 rounded-xl text-slate-400 text-xs text-center">Belum ada rincian jam kerja.</div>`;
+            } else {
+                courseKeys.forEach(course => {
+                    const cData = breakdownData[course];
+                    let subjobHtml = '';
+                    Object.keys(cData.subjobs).forEach(sj => {
+                        subjobHtml += `
+                            <div class="flex justify-between items-center text-xs py-1.5 px-3 bg-white rounded-lg border border-slate-200">
+                                <span class="text-slate-700 font-medium">${sj}</span>
+                                <span class="font-bold text-indigo-600">${cData.subjobs[sj]} Jam</span>
+                            </div>
+                        `;
+                    });
+                    breakdownContainer.innerHTML += `
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
+                            <div class="flex justify-between items-center">
+                                <h4 class="font-bold text-slate-900 text-sm">${course}</h4>
+                                <span class="px-2.5 py-1 bg-indigo-600 text-white rounded-lg text-xs font-bold">${cData.total} Jam Total</span>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                                ${subjobHtml}
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            lucide.createIcons();
+        }
+
+        function renderSettings() {
+            const listContainer = document.getElementById('courses-subjobs-list');
+            if (!listContainer) return;
+
+            listContainer.innerHTML = '';
+            Object.keys(courses).forEach(courseName => {
+                const subjobs = courses[courseName];
+                let sjHtml = subjobs.length === 0 
+                    ? '<p class="text-xs text-slate-400 italic">Belum ada sub-job.</p>' 
+                    : subjobs.map(sj => `
+                        <span class="inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-700 text-xs px-2.5 py-1 rounded-lg font-medium">
+                            ${sj}
+                            <button onclick="removeSubJob('${courseName}', '${sj}')" class="text-indigo-400 hover:text-red-500 ml-1 font-bold">&times;</button>
+                        </span>
+                    `).join(' ');
+
+                listContainer.innerHTML += `
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                        <div class="flex justify-between items-center">
+                            <h4 class="font-bold text-slate-800 text-sm">${courseName}</h4>
+                            <button onclick="removeCourse('${courseName}')" class="text-xs text-red-600 hover:underline">Hapus Kelas</button>
+                        </div>
+                        <div class="flex flex-wrap gap-2 pt-1">
+                            ${sjHtml}
+                        </div>
+                    </div>
+                `;
+            });
+            updateCourseDropdowns();
+            lucide.createIcons();
+        }
+
+        async function addCourse() {
+            const nameInput = document.getElementById('new-course-name');
+            const courseName = nameInput.value.trim();
+            if (!courseName) {
+                showToast("Nama kelas tidak boleh kosong!");
+                return;
+            }
+            if (courses[courseName]) {
+                showToast("Kelas atau peran tersebut sudah ada!");
+                return;
+            }
+            courses[courseName] = [];
+            await saveCoursesToFirebase();
+            nameInput.value = '';
+            renderSettings();
+            showToast(`Kelas ${courseName} berhasil ditambahkan!`);
+        }
+
+        async function removeCourse(courseName) {
+            if (confirm(`Yakin ingin menghapus kelas ${courseName}?`)) {
+                delete courses[courseName];
+                await saveCoursesToFirebase();
+                renderSettings();
+                showToast("Kelas berhasil dihapus");
+            }
+        }
+
+        async function addSubJob() {
+            const courseName = document.getElementById('settings-select-course').value;
+            const subJobInput = document.getElementById('new-subjob-name');
+            const subJobName = subJobInput.value.trim();
+            if (!subJobName) {
+                showToast("Nama sub-job tidak boleh kosong!");
+                return;
+            }
+            if (courses[courseName].includes(subJobName)) {
+                showToast("Sub-job sudah terdaftar di kelas ini!");
+                return;
+            }
+            courses[courseName].push(subJobName);
+            await saveCoursesToFirebase();
+            subJobInput.value = '';
+            renderSettings();
+            showToast(`Sub-job ${subJobName} berhasil ditambahkan!`);
+        }
+
+        async function removeSubJob(courseName, subJobName) {
+            courses[courseName] = courses[courseName].filter(sj => sj !== subJobName);
+            await saveCoursesToFirebase();
+            renderSettings();
+            showToast("Sub-job berhasil dihapus");
+        }
+    </script>
+</body>
+</html>
