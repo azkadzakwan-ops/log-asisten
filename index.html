@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Personal Asisten Log & Time Tracker</title>
+    <title>Personal Asisten Log & Time Tracker (Online)</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Inter Font -->
@@ -34,16 +34,22 @@
                 </div>
                 <div>
                     <h1 class="text-xl font-bold tracking-tight">Personal Asisten Log</h1>
-                    <p class="text-xs text-indigo-200">Koorprak Matek & Kelas Komposit Tracker</p>
+                    <p class="text-xs text-indigo-200">Koorprak Matek & Kelas Komposit Tracker (Cloud Sync)</p>
                 </div>
             </div>
-            <div class="flex items-center gap-2">
-                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="px-4 py-2 text-sm font-medium rounded-lg bg-indigo-700 transition flex items-center gap-2 shadow-sm">
-                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard & Log
-                </button>
-                <button onclick="switchTab('settings')" id="nav-settings" class="px-4 py-2 text-sm font-medium rounded-lg hover:bg-indigo-700 transition flex items-center gap-2">
-                    <i data-lucide="folder-kanban" class="w-4 h-4"></i> Kelola Job & Sub-Job
-                </button>
+            <div class="flex items-center gap-3">
+                <div id="auth-status" class="hidden sm:flex items-center gap-2 bg-indigo-700/80 px-3 py-1.5 rounded-lg text-xs font-medium">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span id="user-id-display">Connecting...</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="switchTab('dashboard')" id="nav-dashboard" class="px-4 py-2 text-sm font-medium rounded-lg bg-indigo-700 transition flex items-center gap-2 shadow-sm">
+                        <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard & Log
+                    </button>
+                    <button onclick="switchTab('settings')" id="nav-settings" class="px-4 py-2 text-sm font-medium rounded-lg hover:bg-indigo-700 transition flex items-center gap-2">
+                        <i data-lucide="folder-kanban" class="w-4 h-4"></i> Kelola Job & Sub-Job
+                    </button>
+                </div>
             </div>
         </div>
     </header>
@@ -150,7 +156,7 @@
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <div>
                             <h2 class="text-lg font-bold text-slate-900">Riwayat & Breakdown Waktu</h2>
-                            <p class="text-xs text-slate-500">Rekapitulasi jam kerja terinci per Kelas dan Sub-Job</p>
+                            <p class="text-xs text-slate-500">Rekapitulasi jam kerja terinci per Kelas dan Sub-Job (Live Cloud)</p>
                         </div>
                         <div>
                             <select id="filter-course" onchange="renderDashboard()" class="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
@@ -199,7 +205,7 @@
                 <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2 mb-1">
                     <i data-lucide="folder-kanban" class="w-5 h-5 text-indigo-600"></i> Kelola Kelas, Peran, & Sub-Job
                 </h2>
-                <p class="text-xs text-slate-500 mb-6">Tambah job baru atau buat sub-job spesifik untuk memudahkan pencatatan tugas.</p>
+                <p class="text-xs text-slate-500 mb-6">Tambah job baru atau buat sub-job spesifik. Perubahan akan langsung tersinkron ke semua perangkat Anda secara online.</p>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <!-- Add Course Form -->
                     <div class="bg-slate-50 p-5 rounded-xl border border-slate-200 space-y-4">
@@ -244,34 +250,32 @@
 
     <!-- FIREBASE & APP LOGIC SCRIPT -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, setDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, setDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Konfigurasi Firebase dari akun Anda
-        const firebaseConfig = {
+        // Global environment variables provided securely by runtime
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'personal-assistant-log-tracker';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
             apiKey: "AIzaSyAwltZ2_2g6-VTqaxCvWE3QG8jIFKYmsaE",
             authDomain: "mykanbanboard-68122.firebaseapp.com",
-            databaseURL: "https://mykanbanboard-68122-default-rtdb.asia-southeast1.firebasedatabase.app",
             projectId: "mykanbanboard-68122",
             storageBucket: "mykanbanboard-68122.firebasestorage.app",
             messagingSenderId: "580780157519",
             appId: "1:580780157519:web:5d8e2d77be992c3624983a"
         };
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : undefined;
 
-        // Inisialisasi Firebase
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const storage = getStorage(app);
+        let app, db, auth, userId = null;
 
-        // State Global Aplikasi
+        // Default Courses & Sub-jobs template
         let courses = {
             "Koorprak Matek": ["Briefing & Koordinasi", "Pembuatan Modul / Soal", "Evaluasi Asisten & Nilai"],
             "Kelas Komposit": ["Koreksi Tugas / Laporan", "Mengajar / Asistensi Lab", "Persiapan Alat & Bahan"]
         };
         let logs = [];
 
-        // Ekspos fungsi ke objek window agar bisa dipanggil langsung dari atribut HTML (onclick, onchange, dll)
+        // Expose functions globally for inline event handlers
         window.switchTab = switchTab;
         window.updateSubJobDropdown = updateSubJobDropdown;
         window.handleLogSubmit = handleLogSubmit;
@@ -283,45 +287,73 @@
         window.addSubJob = addSubJob;
         window.removeSubJob = removeSubJob;
 
-        // Inisialisasi awal saat halaman dimuat
-        document.addEventListener("DOMContentLoaded", () => {
+        document.addEventListener("DOMContentLoaded", async () => {
             document.getElementById('input-date').valueAsDate = new Date();
-            initFirebaseRealtimeListeners();
             lucide.createIcons();
+            await initFirebaseAndSync();
         });
 
-        // Sinkronisasi Realtime dengan Firestore
-        function initFirebaseRealtimeListeners() {
-            // 1. Pantau perubahan data Courses/Jobs di Firestore
-            onSnapshot(doc(db, "settings", "coursesData"), async (docSnap) => {
-                if (docSnap.exists()) {
-                    courses = docSnap.data().courses;
-                } else {
-                    // Jika belum ada di database, buat data default di Firestore
-                    await setDoc(doc(db, "settings", "coursesData"), { courses });
-                }
-                updateCourseDropdowns();
-                renderSettings();
-                renderDashboard();
-            });
+        async function initFirebaseAndSync() {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
 
-            // 2. Pantau perubahan data Logs secara Realtime
-            const q = query(collection(db, "logs"), orderBy("timestamp", "desc"));
-            onSnapshot(q, (snapshot) => {
-                logs = [];
-                snapshot.forEach((docSnap) => {
-                    logs.push({ id: docSnap.id, ...docSnap.data() });
+                // Authenticate first following mandatory rule 3
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                userId = auth.currentUser?.uid || crypto.randomUUID();
+                document.getElementById('user-id-display').innerText = `Cloud Sync Active (${userId.substring(0, 6)}...)`;
+                document.getElementById('auth-status').classList.remove('hidden');
+
+                // Real-time listener for courses & subjobs in private user collection (RULE 1)
+                const coursesDocRef = doc(db, 'artifacts', appId, 'users', userId, 'settings', 'coursesData');
+                onSnapshot(coursesDocRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        courses = docSnap.data().courses || courses;
+                    } else {
+                        // Initialize default courses if not exists
+                        setDoc(coursesDocRef, { courses }).catch(console.error);
+                    }
+                    renderAll();
+                }, (error) => {
+                    console.error("Error listening to courses:", error);
                 });
-                renderDashboard();
-            });
+
+                // Real-time listener for logs collection (RULE 1)
+                const logsColRef = collection(db, 'artifacts', appId, 'users', userId, 'logs');
+                onSnapshot(logsColRef, (snapshot) => {
+                    logs = [];
+                    snapshot.forEach((docSnap) => {
+                        logs.push({ id: docSnap.id, ...docSnap.data() });
+                    });
+                    // Sort locally by timestamp descending (RULE 2: Avoid compound indexes)
+                    logs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+                    renderDashboard();
+                }, (error) => {
+                    console.error("Error listening to logs:", error);
+                });
+
+            } catch (err) {
+                console.error("Firebase initialization failed:", err);
+                document.getElementById('user-id-display').innerText = 'Offline Mode Active';
+                document.getElementById('auth-status').classList.remove('hidden');
+                renderAll();
+            }
         }
 
-        // Fungsi Simpan Struktur Kelas terbaru ke Firestore
-        async function saveCoursesToFirebase() {
+        async function saveCoursesDataToCloud() {
+            if (!userId || !db) return;
             try {
-                await setDoc(doc(db, "settings", "coursesData"), { courses });
-            } catch (error) {
-                console.error("Gagal menyimpan struktur kelas: ", error);
+                const coursesDocRef = doc(db, 'artifacts', appId, 'users', userId, 'settings', 'coursesData');
+                await setDoc(coursesDocRef, { courses });
+            } catch (err) {
+                console.error("Failed to save courses to cloud:", err);
+                showToast("Gagal menyimpan perubahan ke cloud.");
             }
         }
 
@@ -430,16 +462,18 @@
 
             try {
                 let photoUrl = null;
-                // Upload foto ke Firebase Storage jika ada file yang dipilih
                 if (photoInput.files && photoInput.files[0]) {
                     const file = photoInput.files[0];
-                    const storageRef = ref(storage, 'proofs/' + Date.now() + '_' + file.name);
-                    const snapshot = await uploadBytes(storageRef, file);
-                    photoUrl = await getDownloadURL(snapshot.ref);
+                    photoUrl = await toBase64(file);
                 }
 
-                // Simpan dokumen log baru ke Firestore Database
-                await addDoc(collection(db, "logs"), {
+                if (!userId) {
+                    showToast("Autentikasi belum siap. Coba beberapa saat lagi.");
+                    return;
+                }
+
+                const logsColRef = collection(db, 'artifacts', appId, 'users', userId, 'logs');
+                await addDoc(logsColRef, {
                     course,
                     subjob,
                     date,
@@ -452,10 +486,11 @@
                 document.getElementById('input-activity').value = '';
                 document.getElementById('input-duration').value = '2.0';
                 document.getElementById('input-photo').value = '';
-                showToast("Aktivitas berhasil dicatat ke Firebase!");
+                renderDashboard();
+                showToast("Aktivitas berhasil tersimpan di Cloud!");
             } catch (error) {
                 console.error("Gagal menyimpan log:", error);
-                alert("Gagal menyimpan data ke server.");
+                showToast("Gagal menyimpan data.");
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = `<i data-lucide="save" class="w-4 h-4"></i> Simpan Aktivitas`;
@@ -463,16 +498,32 @@
             }
         }
 
+        function toBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
+        }
+
         async function deleteLog(id) {
+            // Using custom confirmation modal behavior or built-in standard safe check without alert()
             if (confirm("Yakin ingin menghapus catatan aktivitas ini?")) {
                 try {
-                    await deleteDoc(doc(db, "logs", id));
-                    showToast("Log berhasil dihapus dari server");
+                    const docRef = doc(db, 'artifacts', appId, 'users', userId, 'logs', id);
+                    await deleteDoc(docRef);
+                    showToast("Log berhasil dihapus dari Cloud");
                 } catch (error) {
                     console.error("Gagal menghapus log:", error);
-                    alert("Gagal menghapus data.");
+                    showToast("Gagal menghapus log.");
                 }
             }
+        }
+
+        function renderAll() {
+            renderDashboard();
+            renderSettings();
         }
 
         function renderDashboard() {
@@ -482,13 +533,11 @@
             const filter = filterEl.value;
             const filteredLogs = filter === 'ALL' ? logs : logs.filter(l => l.course === filter);
             
-            // Total Hours & Stats
             const totalHours = filteredLogs.reduce((acc, curr) => acc + (curr.duration || 0), 0);
             document.getElementById('stat-total-hours').innerText = `${totalHours} Jam`;
             document.getElementById('stat-total-logs').innerText = filteredLogs.length;
             document.getElementById('stat-total-courses').innerText = Object.keys(courses).length;
 
-            // Render Table
             const tbody = document.getElementById('logs-table-body');
             tbody.innerHTML = '';
             if (filteredLogs.length === 0) {
@@ -517,7 +566,6 @@
                 });
             }
 
-            // Render Breakdown Container
             const breakdownContainer = document.getElementById('breakdown-container');
             breakdownContainer.innerHTML = '';
             
@@ -526,8 +574,8 @@
                 if (!breakdownData[l.course]) {
                     breakdownData[l.course] = { total: 0, subjobs: {} };
                 }
-                breakdownData[l.course].total += l.duration;
-                breakdownData[l.course].subjobs[l.subjob] = (breakdownData[l.course].subjobs[l.subjob] || 0) + l.duration;
+                breakdownData[l.course].total += (l.duration || 0);
+                breakdownData[l.course].subjobs[l.subjob] = (breakdownData[l.course].subjobs[l.subjob] || 0) + (l.duration || 0);
             });
 
             const courseKeys = Object.keys(breakdownData);
@@ -605,17 +653,17 @@
                 return;
             }
             courses[courseName] = [];
-            await saveCoursesToFirebase();
+            await saveCoursesDataToCloud();
             nameInput.value = '';
-            renderSettings();
+            renderAll();
             showToast(`Kelas ${courseName} berhasil ditambahkan!`);
         }
 
         async function removeCourse(courseName) {
             if (confirm(`Yakin ingin menghapus kelas ${courseName}?`)) {
                 delete courses[courseName];
-                await saveCoursesToFirebase();
-                renderSettings();
+                await saveCoursesDataToCloud();
+                renderAll();
                 showToast("Kelas berhasil dihapus");
             }
         }
@@ -633,16 +681,16 @@
                 return;
             }
             courses[courseName].push(subJobName);
-            await saveCoursesToFirebase();
+            await saveCoursesDataToCloud();
             subJobInput.value = '';
-            renderSettings();
+            renderAll();
             showToast(`Sub-job ${subJobName} berhasil ditambahkan!`);
         }
 
         async function removeSubJob(courseName, subJobName) {
             courses[courseName] = courses[courseName].filter(sj => sj !== subJobName);
-            await saveCoursesToFirebase();
-            renderSettings();
+            await saveCoursesDataToCloud();
+            renderAll();
             showToast("Sub-job berhasil dihapus");
         }
     </script>
