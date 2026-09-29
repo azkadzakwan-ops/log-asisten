@@ -145,8 +145,8 @@
                             <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Upload Bukti / Foto (Opsional)</label>
                             <input type="file" id="input-photo" accept="image/*" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer">
                         </div>
-                        <button type="submit" id="submit-btn" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl text-sm shadow transition flex items-center justify-center gap-2">
-                            <i data-lucide="save" class="w-4 h-4"></i> Simpan Aktivitas
+                        <button type="submit" id="submit-btn" disabled class="w-full py-3 bg-slate-300 text-slate-500 font-medium rounded-xl text-sm transition flex items-center justify-center gap-2 cursor-not-allowed">
+                            <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Menghubungkan ke Cloud...
                         </button>
                     </form>
                 </div>
@@ -259,7 +259,6 @@
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
             apiKey: "AIzaSyAwltZ2_2g6-VTqaxCvWE3QG8jIFKYmsaE",
             authDomain: "mykanbanboard-68122.firebaseapp.com",
-            atabaseURL: "https://mykanbanboard-68122-default-rtdb.asia-southeast1.firebasedatabase.app",
             projectId: "mykanbanboard-68122",
             storageBucket: "mykanbanboard-68122.firebasestorage.app",
             messagingSenderId: "580780157519",
@@ -268,6 +267,7 @@
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : undefined;
 
         let app, db, auth, userId = null;
+        let isAuthReady = false;
 
         // Default Courses & Sub-jobs template
         let courses = {
@@ -307,7 +307,35 @@
                     await signInAnonymously(auth);
                 }
 
-                userId = auth.currentUser?.uid || crypto.randomUUID();
+                // Wait until currentUser is populated or onAuthStateChanged fires
+                await new Promise((resolve) => {
+                    const unsubscribe = onAuthStateChanged(auth, (user) => {
+                        if (user) {
+                            userId = user.uid;
+                            unsubscribe();
+                            resolve();
+                        }
+                    });
+                    // Fallback timeout in case auth state takes a moment
+                    setTimeout(() => {
+                        if (auth.currentUser) {
+                            userId = auth.currentUser.uid;
+                            resolve();
+                        } else if (!userId) {
+                            userId = crypto.randomUUID();
+                            resolve();
+                        }
+                    }, 1500);
+                });
+
+                isAuthReady = true;
+                const submitBtn = document.getElementById('submit-btn');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.className = "w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl text-sm shadow transition flex items-center justify-center gap-2";
+                    submitBtn.innerHTML = `<i data-lucide="save" class="w-4 h-4"></i> Simpan Aktivitas`;
+                }
+
                 document.getElementById('user-id-display').innerText = `Cloud Sync Active (${userId.substring(0, 6)}...)`;
                 document.getElementById('auth-status').classList.remove('hidden');
 
@@ -341,6 +369,14 @@
 
             } catch (err) {
                 console.error("Firebase initialization failed:", err);
+                userId = crypto.randomUUID();
+                isAuthReady = true;
+                const submitBtn = document.getElementById('submit-btn');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.className = "w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl text-sm shadow transition flex items-center justify-center gap-2";
+                    submitBtn.innerHTML = `<i data-lucide="save" class="w-4 h-4"></i> Simpan Aktivitas`;
+                }
                 document.getElementById('user-id-display').innerText = 'Offline Mode Active';
                 document.getElementById('auth-status').classList.remove('hidden');
                 renderAll();
@@ -458,6 +494,11 @@
                 return;
             }
 
+            if (!isAuthReady || !userId) {
+                showToast("Sistem autentikasi sedang menyiapkan koneksi. Tunggu sebentar...");
+                return;
+            }
+
             submitBtn.disabled = true;
             submitBtn.innerText = "Menyimpan ke Cloud...";
 
@@ -466,11 +507,6 @@
                 if (photoInput.files && photoInput.files[0]) {
                     const file = photoInput.files[0];
                     photoUrl = await toBase64(file);
-                }
-
-                if (!userId) {
-                    showToast("Autentikasi belum siap. Coba beberapa saat lagi.");
-                    return;
                 }
 
                 const logsColRef = collection(db, 'artifacts', appId, 'users', userId, 'logs');
@@ -491,7 +527,7 @@
                 showToast("Aktivitas berhasil tersimpan di Cloud!");
             } catch (error) {
                 console.error("Gagal menyimpan log:", error);
-                showToast("Gagal menyimpan data.");
+                showToast("Gagal menyimpan data ke cloud.");
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = `<i data-lucide="save" class="w-4 h-4"></i> Simpan Aktivitas`;
